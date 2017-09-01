@@ -21,9 +21,20 @@ export PATH=$PATH:/usr/local/bin/:/usr/bin
 usage() {
   echo -e "\nUsage: $0 [-d <days>]" 1>&2
   echo -e "\nOptions:\n"
-  echo -e "    -d    Number of days to keep snapshots.  Snapshots older than this number deleted."
+  echo -e "    -d    Device name."
+  echo -e "\n"
+  echo -e "    -z    Device zone."
+  echo -e "\n"
+  echo -e "    -z    Device ID."
+  echo -e "\n"
+  echo -e "    -d    Number of snapshots to keep. Used of in conjunction with -n."
+  echo -e "          Snapshots older than this number deleted."
   echo -e "          Default if not set: 7 [OPTIONAL]"
   echo -e "\n"
+  echo -e "    -m    Days multiplier."
+  echo -e "          Default if not set: 1 [OPTIONAL]"
+  echo -e "\n"
+
   exit 1
 }
 
@@ -34,24 +45,63 @@ usage() {
 
 setScriptOptions()
 {
-    while getopts ":d:" o; do
+    while getopts ":d:n:m:z:i:" o; do
       case "${o}" in
         d)
           opt_d=${OPTARG}
           ;;
-
+        m)
+          opt_m=${OPTARG}
+          ;;
+	n)
+	  opt_n=${OPTARG}
+	  ;;
+        z)
+          opt_z=${OPTARG}
+          ;;
+        i)
+          opt_i=${OPTARG}
+          ;;
         *)
           usage
           ;;
       esac
     done
-    shift $((OPTIND-1))
+    #shift $((OPTIND-2))
 
     if [[ -n $opt_d ]];then
       OLDER_THAN=$opt_d
     else
       OLDER_THAN=7
     fi
+
+    if [[ -n $opt_m ]];then
+      DAYS_MULTIPLE=$opt_m
+    else
+      DAYS_MULTIPLE=1
+    fi
+
+    if [[ -n $opt_n ]];then
+      DEVICE_NAME=$opt_n
+    else
+      echo "No device name given"
+      usage
+    fi
+
+    if [[ -n $opt_z ]];then
+      INSTANCE_ZONE=$opt_z
+    else
+      echo "No device zone given"
+      usage
+    fi
+
+    if [[ -n $opt_i ]];then
+      DEVICE_ID=$opt_i
+    else
+      echo "No device id given"
+      usage
+    fi
+
 }
 
 
@@ -104,31 +154,30 @@ getInstanceZone()
 createSnapshotName()
 {
     # create snapshot name
-    local name="gcs-$1-$2-$3"
+    local name="gcs-$1-$2-$3-$4"
 
     # google compute snapshot name cannot be longer than 62 characters
     local name_max_len=62
 
     # check if snapshot name is longer than max length
-    if [ ${#name} -ge ${name_max_len} ]; then
+#    if [ ${#name} -ge ${name_max_len} ]; then
 
         # work out how many characters we require - prefix + device id + timestamp
-        local req_chars="gcs--$2-$3"
+#        local req_chars="gcs--$2-$3"
 
         # work out how many characters that leaves us for the device name
-        local device_name_len=`expr ${name_max_len} - ${#req_chars}`
+#        local device_name_len=`expr ${name_max_len} - ${#req_chars}`
 
         # shorten the device name
-        local device_name=${1:0:device_name_len}
+#        local device_name=${1:0:device_name_len}
 
         # create new (acceptable) snapshot name
-        name="gcs-${device_name}-$2-$3" ;
+#        name="gcs-${device_name}-$2-$3" ;
 
-    fi
+#   fi
 
     echo -e ${name}
 }
-
 
 #
 # CREATES SNAPSHOT AND RETURNS OUTPUT
@@ -138,7 +187,7 @@ createSnapshotName()
 
 createSnapshot()
 {
-    echo -e "$(gcloud compute disks snapshot $1 --snapshot-names $2 --zone $3)"
+ echo -e "$(gcloud compute disks snapshot $1 --snapshot-names $2 --zone $3)"
 }
 
 
@@ -227,7 +276,8 @@ checkSnapshotDeletion()
 
 deleteSnapshot()
 {
-    echo -e "$(gcloud compute snapshots delete $1 -q)"
+echo 'Commented'
+  #  echo -e "$(gcloud compute snapshots delete $1 -q)"
 }
 
 
@@ -254,17 +304,17 @@ createSnapshotWrapper()
     DATE_TIME="$(date "+%s")"
 
     # get the device name
-    DEVICE_NAME=$(getDeviceName)
+#    DEVICE_NAME=$(getDeviceName)
 
     # get the device id
-    DEVICE_ID=$(getDeviceId)
+#    DEVICE_ID=$(getDeviceId)
 
     # get the instance zone
-    INSTANCE_ZONE=$(getInstanceZone)
-
+#    INSTANCE_ZONE=$(getInstanceZone)
+ 
     # create snapshot name
-    SNAPSHOT_NAME=$(createSnapshotName ${DEVICE_NAME} ${DEVICE_ID} ${DATE_TIME})
-
+    SNAPSHOT_NAME=$(createSnapshotName ${DAYS_MULTIPLE} ${DEVICE_NAME} ${DEVICE_ID} ${DATE_TIME})
+    
     # create the snapshot
     OUTPUT_SNAPSHOT_CREATION=$(createSnapshot ${DEVICE_NAME} ${SNAPSHOT_NAME} ${INSTANCE_ZONE})
 }
