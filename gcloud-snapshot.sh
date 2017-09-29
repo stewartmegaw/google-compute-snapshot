@@ -211,8 +211,8 @@ getSnapshots()
     do
         # grab snapshot name from full URI
         snapshot="${line##*/}"
-
-        # add snapshot to global array
+        
+	# add snapshot to global array
         SNAPSHOTS+=(${snapshot})
 
     done <<< "$(echo -e "$gcloud_response")"
@@ -276,8 +276,7 @@ checkSnapshotDeletion()
 
 deleteSnapshot()
 {
-echo 'Commented'
-  #  echo -e "$(gcloud compute snapshots delete $1 -q)"
+    echo -e "$(gcloud compute snapshots delete $1 -q)"
 }
 
 
@@ -328,7 +327,7 @@ deleteSnapshotsWrapper()
     DELETION_DATE=$(getSnapshotDeletionDate "${OLDER_THAN}")
 
     # get list of snapshots for regex - saved in global array
-    getSnapshots "(gcs-.*${DEVICE_ID}-.*)"
+    getSnapshots "(gcs-$DAYS_MULTIPLE-${DEVICE_NAME}-${DEVICE_ID}-.*)"
 
     # loop through snapshots
     for snapshot in "${SNAPSHOTS[@]}"
@@ -341,7 +340,8 @@ deleteSnapshotsWrapper()
 
         # delete snapshot
         if [ "${DELETION_CHECK}" -eq "1" ]; then
-           OUTPUT_SNAPSHOT_DELETION=$(deleteSnapshot ${snapshot})
+		OUTPUT_SNAPSHOT_DELETION=$(deleteSnapshot ${snapshot})
+          	logTime "Deleted $snapshot"
         fi
 
     done
